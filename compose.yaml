@@ -1,0 +1,33 @@
+services:
+  comfyui:
+    build: .
+    image: comfyui
+    container_name: comfyui
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      VRAM_HEADROOM: ${VRAM_HEADROOM:-2.5}
+      HOME: /data/user
+    ports:
+      - "8188:8188"
+    volumes:
+      - ./data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8188/')",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
