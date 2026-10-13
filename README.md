@@ -68,43 +68,58 @@ Defaults are built into `compose.yaml`; no `.env` file is required. Optional ove
 
 ## Model
 
-Default download script: **FLUX.2 [klein] 4B distilled, FP8 weights** (Apache 2.0). Text-to-image and image edit from reference images. FP8 checkpoints are smallest on disk; on GPUs without strong FP8 compute, ComfyUI may run much of the graph in BF16 and spill to host RAM when VRAM is tight.
-
-Other options omitted here on purpose:
-
-| Option                    | Why it is not in this folder                           |
-| ------------------------- | ------------------------------------------------------ |
-| FLUX.2 [klein] 9B         | Distilled peak is about 19 GB. Non-commercial license. |
-| FLUX.2 [dev]              | 32B. Does not fit typical consumer GPUs.               |
-| FLUX.1 [dev] full weights | About 23 GB on disk, and a different, older graph.     |
-| Qwen-Image full weights   | Needs a 24 GB card for the unquantized file.           |
-
-On the server (~13 GB: 3.8 GB diffusion, 8.0 GB text encoder, 0.3 GB VAE):
+Download weights on the **host** (not inside the container). ComfyUI reads `data/models/` live; no container recreate needed after files are in place.
 
 ```bash
 cd ~/comfyui   # or your clone path
-bash scripts/download-models.sh
+bash scripts/download-models.sh          # FLUX Klein image (~13 GB)
+bash scripts/download-models.sh wan      # Wan 2.2 TI2V 5B video (~18 GB)
+bash scripts/download-models.sh all      # both
 ```
 
-ComfyUI reads `data/models/` live. No container recreate needed after files are in place.
+### FLUX.2 [klein] 4B image (default)
 
-### First image
+Apache 2.0. Text-to-image and image edit. FP8 on disk; on GPUs without strong FP8 compute, ComfyUI may run much of the graph in BF16 and spill to host RAM when VRAM is tight.
 
-1. Workflow templates → **Flux.2 [Klein] 4B: Text to Image**.
-2. On the **distilled** loader, set the diffusion model to `flux-2-klein-4b-fp8.safetensors`.
-   The template’s default name is the larger BF16 file, which this script does not download.
+| File | Folder |
+| ---- | ------ |
+| `flux-2-klein-4b-fp8.safetensors` | `data/models/diffusion_models/` |
+| `qwen_3_4b.safetensors` | `data/models/text_encoders/` |
+| `flux2-vae.safetensors` | `data/models/vae/` |
+
+**First image**
+
+1. Workflow templates → **Flux.2 [Klein] 4B: Text to Image** (distilled), or fix loaders on the non-distilled template.
+2. Diffusion: `flux-2-klein-4b-fp8.safetensors` (not `flux-2-klein-base-4b.safetensors`).
 3. Text encoder `qwen_3_4b.safetensors`, VAE `flux2-vae.safetensors`.
-4. Distilled settings are **4 steps**, **CFG 1**. A negative prompt has no effect at CFG 1.
-5. Queue the distilled graph. PNGs land in `data/output/`.
+4. **4 steps**, **CFG 1**. PNGs land in `data/output/`.
 
-The same weights drive the **Flux.2 [Klein] 4B** distilled image-edit template. Put a reference in
-`data/input/` (or upload it in the UI) when you want a variation of an image you already have.
+Image-edit template: same three files; reference in `data/input/` or upload in the UI.
 
-Example prompt:
+### Wan 2.2 TI2V 5B video (optional)
 
-```text
-a ceramic cup on a wooden table, soft morning light, centered, plain background
-```
+Text-to-video and image-to-video ([Comfy docs](https://docs.comfy.org/tutorials/video/wan/wan2_2)). Uses the **5B** hybrid diffusion model and **Wan 2.2** VAE (not `wan_2.1_vae`, which is for 14B workflows).
+
+| File | Folder |
+| ---- | ------ |
+| `wan2.2_ti2v_5B_fp16.safetensors` | `data/models/diffusion_models/` |
+| `umt5_xxl_fp8_e4m3fn_scaled.safetensors` | `data/models/text_encoders/` |
+| `wan2.2_vae.safetensors` | `data/models/vae/` |
+
+**First clip**
+
+1. Workflow → Browse templates → **Video** → **Wan 2.2 5B** (or “Wan2.2 5B video generation”).
+2. Load diffusion `wan2.2_ti2v_5B_fp16.safetensors`, CLIP/text encoder `umt5_xxl_fp8_e4m3fn_scaled.safetensors`, VAE `wan2.2_vae.safetensors`.
+3. Text-to-video: run with prompt only. Image-to-video: enable the **Load image** node (often **Ctrl+B** on that node).
+4. Lower **resolution** and **frame count** on a 12 GB card, especially if another GPU workload is running. Clips land in `data/output/`.
+
+### Not included
+
+| Option | Why |
+| ------ | --- |
+| FLUX.2 [klein] 9B / [dev], FLUX.1 [dev] | Size, license, or VRAM |
+| Wan 2.2 **14B** T2V/I2V | Two large diffusion files + `wan_2.1_vae`; needs much more VRAM |
+| Qwen-Image full weights | 24 GB class hardware |
 
 ## Sharing the GPU
 
